@@ -8,6 +8,8 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
+#include "TrajectoryGen.h"
+#include "tools.h"
 
 using namespace std;
 
@@ -242,7 +244,9 @@ int main() {
           	vector<double> next_x_vals;
           	vector<double> next_y_vals;
 
-          	double jerk = 4;
+          	TrajectoryGen trajectory;
+
+          	/*double jerk = 4;
           	double time;
           	static double acc = 0;
           	static double vel = 0;
@@ -277,8 +281,13 @@ int main() {
           	}
           	//cout<<"acc:"<< acc<<endl;
           	//cout<<"counter:"<< counter<<endl;
+          	 */
 
+          	vector<vector<double>> traj = trajectory.MinimumJerkTrajectory(car_s,map_waypoints_s,
+          			map_waypoints_x,map_waypoints_y,previous_path_x,previous_path_y);
 
+          	next_x_vals = traj[0];
+          	next_y_vals = traj[1];
 
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
