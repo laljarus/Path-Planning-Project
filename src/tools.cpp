@@ -148,6 +148,6 @@ vector<double> Tools::getXY(double s, double d, const vector<double> &maps_s, co
 	double x = seg_x + d*cos(perp_heading);
 	double y = seg_y + d*sin(perp_heading);
 
-	return {x,y};
+	return {x,y,heading};
 
 }

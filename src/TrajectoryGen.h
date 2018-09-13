@@ -24,8 +24,12 @@ public:
 
 	virtual ~TrajectoryGen();
 
-	vector<vector<double>> MinimumJerkTrajectory(const double &car_s,const vector<double> &maps_s,
+	vector<vector<double>> KeepLane(const double &car_s,const double &car_d,const double &car_speed,const vector<double> &maps_s,
 		const vector<double> &maps_x, const vector<double> &maps_y,const vector<double> &previous_path_x, const vector<double> &previous_path_y);
+
+	vector<double> JMT(vector< double> start, vector <double> end, double T);
+
+
 };
 
 

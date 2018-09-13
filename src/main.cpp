@@ -241,54 +241,18 @@ int main() {
 
           	json msgJson;
 
+          	//cout<<"Act x,y:"<<car_x<<","<<car_y<<endl;
+
           	vector<double> next_x_vals;
           	vector<double> next_y_vals;
 
           	TrajectoryGen trajectory;
 
-          	/*double jerk = 4;
-          	double time;
-          	static double acc = 0;
-          	static double vel = 0;
-          	static int counter = 0;
-          	double sampleTime = 0.02;
-          	double posX;
-          	double posY;
-          	vector<double> pos;
-          	double s;
-          	double d = 2;
-
-          	counter +=1;
-
-          	if (acc < 10){
-          		acc += jerk*sampleTime;
-          	}
-          	if(vel<21){
-          		vel += acc*sampleTime;
-          	}
-
-          	for(int i = 0;i< 10;i++)
-          	{
-          		time = sampleTime*i;
-          		s = car_s + vel*time;
-          		pos = getXY(s,d,map_waypoints_s,map_waypoints_x,map_waypoints_y);
-          		posX = pos[0];
-          		posY = pos[1];
-          		//posX = car_x + vel*time*cos(deg2rad(car_yaw));
-          		//posY = car_y + vel*time*sin(deg2rad(car_yaw));
-          		next_x_vals.push_back(posX);
-          		next_y_vals.push_back(posY);
-          	}
-          	//cout<<"acc:"<< acc<<endl;
-          	//cout<<"counter:"<< counter<<endl;
-          	 */
-
-          	vector<vector<double>> traj = trajectory.MinimumJerkTrajectory(car_s,map_waypoints_s,
+          	vector<vector<double>> traj = trajectory.KeepLane(car_s,car_d,car_speed,map_waypoints_s,
           			map_waypoints_x,map_waypoints_y,previous_path_x,previous_path_y);
 
           	next_x_vals = traj[0];
           	next_y_vals = traj[1];
-
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           	msgJson["next_x"] = next_x_vals;
