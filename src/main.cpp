@@ -249,7 +249,7 @@ int main() {
           	TrajectoryGen trajectory;
 
           	vector<vector<double>> traj = trajectory.KeepLane(car_s,car_d,car_speed,map_waypoints_s,
-          			map_waypoints_x,map_waypoints_y,previous_path_x,previous_path_y);
+          			map_waypoints_x,map_waypoints_y,previous_path_x,previous_path_y,end_path_s,end_path_d);
 
           	next_x_vals = traj[0];
           	next_y_vals = traj[1];
