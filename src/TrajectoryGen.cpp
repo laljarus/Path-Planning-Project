@@ -29,7 +29,7 @@ vector<vector<double>> TrajectoryGen::KeepLane(const double &car_s,const double 
 	//double acc = 6;
 	double set_speed = 20; // velocity in m/s
 	double speed_limit = 20;
-	int path_len = 51;
+	int path_len = 75;
 	double Total_time = (path_len-1)*0.02; // time in seconds
 	double avg_speed;
 	static int counter = 0;
@@ -61,15 +61,15 @@ vector<vector<double>> TrajectoryGen::KeepLane(const double &car_s,const double 
 	vector<double> coefficients_x,coefficients_y;
 
 
-	int prev_path_weight = 35;
+	int prev_path_weight = 65;
 
 	int prev_path_size = previous_path_x.size();
 
 
-	if((set_speed-car_speed)>6){
-		set_speed = car_speed+6;
-	}else if ((set_speed-car_speed)<-6){
-		set_speed = car_speed-6;
+	if((set_speed-car_speed)>8){
+		set_speed = car_speed+8;
+	}else if ((car_speed - set_speed)>8){
+		set_speed = car_speed-8 ;
 	}
 
 	avg_speed = (car_speed+set_speed)/2;
@@ -91,6 +91,8 @@ vector<vector<double>> TrajectoryGen::KeepLane(const double &car_s,const double 
 
 	cout<<"Previous Path Size: "<<prev_path_size<<endl;
 	cout<<"set speed:"<<set_speed<<endl;
+
+	double dx,dy;
 
 	if(prev_path_size == 0){
 
@@ -114,6 +116,9 @@ vector<vector<double>> TrajectoryGen::KeepLane(const double &car_s,const double 
 		final_state_y.push_back(car_pos_final_xy[1]);
 		final_state_y.push_back(set_speed*sin(car_pos_final_xy[2]));
 		final_state_y.push_back(0);
+
+		cout<<"ds:"<<(final_s-car_s)<<endl;
+		cout<<"ds_dot:"<<(set_speed - car_speed)<<endl;
 
 
 		coefficients_x = TrajectoryGen::JMT(initial_state_x,final_state_x,Total_time);
@@ -140,7 +145,6 @@ vector<vector<double>> TrajectoryGen::KeepLane(const double &car_s,const double 
 			next_y_vals.push_back(previous_path_y[i]);
 		}
 
-
 		double x_k = previous_path_x[prev_path_size-1];
 		double x_k_1 = previous_path_x[prev_path_size -2];
 		double x_k_2 = previous_path_x[prev_path_size -3];
@@ -160,7 +164,7 @@ vector<vector<double>> TrajectoryGen::KeepLane(const double &car_s,const double 
 
 		double y_dot_dot_k = (y_dot_k - y_dot_k_1)/dt;
 
-		double car_speed_k = sqrt(x_k*x_k+y_k*y_k);
+		double car_speed_k = sqrt(x_dot_k*x_dot_k+y_dot_k*y_dot_k);
 
 		avg_speed = (car_speed_k+set_speed)/2;
 
@@ -170,10 +174,13 @@ vector<vector<double>> TrajectoryGen::KeepLane(const double &car_s,const double 
 
 		final_s = avg_speed*Total_time + end_path_s;
 
-		cout<<"Car speed:"<<car_speed<<endl;
+		cout<<"Car speed:"<<car_speed_k<<endl;
 		cout<<"Car S:"<<car_s<<endl;
 		cout<<"Final S:"<<final_s<<endl;
 		cout<<"End Path S:"<<end_path_s<<endl;
+
+		cout<<"ds:"<<(final_s-end_path_s)<<endl;
+		cout<<"ds_dot:"<<(set_speed - car_speed_k)<<endl;
 
 		car_pos_final_xy = tools.getXY(final_s,d,maps_s,maps_x,maps_y);
 
