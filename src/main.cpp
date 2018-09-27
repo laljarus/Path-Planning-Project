@@ -229,6 +229,10 @@ int main() {
           	double car_yaw = j[1]["yaw"];
           	double car_speed = j[1]["speed"];
 
+			double dt = 0.02;
+			double prev_x,prev_y;
+			double x_dot,y_dot;
+
           	// Previous path data given to the Planner
           	auto previous_path_x = j[1]["previous_path_x"];
           	auto previous_path_y = j[1]["previous_path_y"];
@@ -237,19 +241,42 @@ int main() {
           	double end_path_d = j[1]["end_path_d"];
 
           	// Sensor Fusion Data, a list of all other cars on the same side of the road.
+          	//vector<vector<double>> sensor_fusion = j[1]["sensor_fusion"];
           	auto sensor_fusion = j[1]["sensor_fusion"];
+
+          	vector<double> sensor_fusion_0 = sensor_fusion[0];
+
+          	/*cout<<"sensor fusion type:"<<sensor_fusion.type_name()<<endl;
+          	cout<<"sensor fusion element type:"<<sensor_fusion_0.type_name()<<endl;
+          	cout<<"sensor fusion size:"<<sensor_fusion.size()<<endl;
+
+          	for(int j = 0;j<sensor_fusion_0.size();j++){
+          		cout<<"sensor fusion structure element type -"<<j<<":"<<sensor_fusion_0[j].type;
+          		cout<<endl;
+
+          	}*/
+
 
           	json msgJson;
 
-          	//cout<<"Act x,y:"<<car_x<<","<<car_y<<endl;
+			x_dot = (car_x - prev_x)/dt;
+			y_dot = (car_y - prev_y)/dt;
+
+			//cout<<"x_dot:"<<x_dot<<endl;
+			//cout<<"y_dot:"<<y_dot<<endl;
+
+          	//cout<<"Act_speed:"<<sqrt(x_dot*x_dot+y_dot*y_dot)<<endl;
+			//cout<<"car speed:"<<car_speed/2.25<<endl;
+			//car_speed = car_speed/2.25;
 
           	vector<double> next_x_vals;
           	vector<double> next_y_vals;
 
           	TrajectoryGen trajectory;
 
-          	vector<vector<double>> traj = trajectory.KeepLane(car_s,car_d,car_speed,map_waypoints_s,
-          			map_waypoints_x,map_waypoints_y,previous_path_x,previous_path_y,end_path_s,end_path_d);
+          	trajectory.Init(car_s,car_d,car_speed,map_waypoints_s,map_waypoints_x,map_waypoints_y,previous_path_x,previous_path_y,end_path_s,end_path_d,sensor_fusion,car_yaw);
+
+          	vector<vector<double>> traj = trajectory.KeepLane();
 
           	next_x_vals = traj[0];
           	next_y_vals = traj[1];
@@ -262,6 +289,9 @@ int main() {
 
           	//this_thread::sleep_for(chrono::milliseconds(1000));
           	ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+						
+						prev_x = car_x;
+						prev_y = car_y;
           
         }
       } else {

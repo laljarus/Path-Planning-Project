@@ -43,6 +43,8 @@ public:
 	// Transform from Frenet s,d coordinates to Cartesian x,y
 	vector<double> getXY(double s, double d, const vector<double> &maps_s, const vector<double> &maps_x, const vector<double> &maps_y);
 
+	
+
 
 
 };

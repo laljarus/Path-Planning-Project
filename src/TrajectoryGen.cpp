@@ -13,6 +13,7 @@
 #include "tools.h"
 #include "TrajectoryGen.h"
 #include <math.h>
+#include <unordered_map>
 
 using namespace std;
 using Eigen::MatrixXd;
@@ -23,16 +24,34 @@ Tools tools;
 TrajectoryGen::TrajectoryGen(){}
 TrajectoryGen::~TrajectoryGen(){}
 
-vector<vector<double>> TrajectoryGen::KeepLane(const double &car_s,const double &car_d,const double &car_speed,const vector<double> &maps_s,
-		const vector<double> &maps_x, const vector<double> &maps_y,const vector<double> &previous_path_x, const vector<double> &previous_path_y, double end_path_s, double end_path_d){
+void TrajectoryGen::Init(const double &car_s_in,const double &car_d_in,const double &car_speed_in,const vector<double> &maps_s_in,
+		const vector<double> &maps_x_in,const vector<double> &maps_y_in,const vector<double> &previous_path_x_in,const vector<double> &previous_path_y_in,
+		const double end_path_s_in,const double end_path_d_in,const vector<vector<double>> &sensor_fusion_in,const double car_yaw_in){
+
+			car_yaw = car_yaw_in;
+			car_s = car_s_in;
+			car_d = car_d_in;
+			car_speed = car_speed_in/2.25;
+			maps_s = maps_s_in;
+			maps_x = maps_x_in;
+			maps_y = maps_y_in;
+			previous_path_x = previous_path_x_in;
+			previous_path_y = previous_path_y_in;
+			end_path_s = end_path_s_in;
+			end_path_d = end_path_d_in;
+			sensor_fusion = sensor_fusion_in;
+
+}
+
+vector<vector<double>> TrajectoryGen::KeepLane(){
 
 	//double acc = 6;
-	double set_speed = 20; // velocity in m/s
-	double speed_limit = 20;
-	int path_len = 75;
+	double set_speed = TrajectoryGen::state_machine(); // velocity in m/s
+	double speed_limit = 21.5;
+	int path_len = 101;
 	double Total_time = (path_len-1)*0.02; // time in seconds
 	double avg_speed;
-	static int counter = 0;
+	static int counter = 0;	
 
 	/*set_speed += counter*0.02*acc;
 	counter++;
@@ -89,10 +108,10 @@ vector<vector<double>> TrajectoryGen::KeepLane(const double &car_s,const double 
 	}
 	counter++;
 
-	cout<<"Previous Path Size: "<<prev_path_size<<endl;
+	//cout<<"Previous Path Size: "<<prev_path_size<<endl;
 	cout<<"set speed:"<<set_speed<<endl;
 
-	double dx,dy;
+	double dx,dy,ds;
 
 	if(prev_path_size == 0){
 
@@ -101,11 +120,11 @@ vector<vector<double>> TrajectoryGen::KeepLane(const double &car_s,const double 
 		car_pos_final_xy = tools.getXY(final_s,car_d,maps_s,maps_x,maps_y);
 
 		initial_state_x.push_back(car_pos_init_xy[0]);
-		initial_state_x.push_back(car_speed*cos(car_pos_init_xy[2]));
+		initial_state_x.push_back(car_speed*cos(car_yaw));
 		initial_state_x.push_back(0);
 
 		initial_state_y.push_back(car_pos_init_xy[1]);
-		initial_state_y.push_back(car_speed*sin(car_pos_init_xy[2]));
+		initial_state_y.push_back(car_speed*sin(car_yaw));
 		initial_state_y.push_back(0);
 
 
@@ -165,27 +184,49 @@ vector<vector<double>> TrajectoryGen::KeepLane(const double &car_s,const double 
 		double y_dot_dot_k = (y_dot_k - y_dot_k_1)/dt;
 
 		double car_speed_k = sqrt(x_dot_k*x_dot_k+y_dot_k*y_dot_k);
+		double yaw_k = atan2(y_dot_k,x_dot_k);
+		vector<double> init_pos_sd = tools.getFrenet(x_k,y_k,yaw_k,maps_x,maps_y);
 
-		avg_speed = (car_speed_k+set_speed)/2;
+		if(abs(car_speed-set_speed)>2){
+			avg_speed = (car_speed_k+set_speed)/2;
+		}else{
+			avg_speed = (car_speed_k+set_speed)/2;
+		}
 
 		if(avg_speed > speed_limit){
 			avg_speed = speed_limit;
 		}
 
-		final_s = avg_speed*Total_time + end_path_s;
+		final_s = avg_speed*Total_time + end_path_s-abs(car_d-d);
 
 		cout<<"Car speed:"<<car_speed_k<<endl;
+		cout<<"Average Speed:"<<avg_speed<<endl;
+
 		cout<<"Car S:"<<car_s<<endl;
 		cout<<"Final S:"<<final_s<<endl;
 		cout<<"End Path S:"<<end_path_s<<endl;
 
-		cout<<"ds:"<<(final_s-end_path_s)<<endl;
-		cout<<"ds_dot:"<<(set_speed - car_speed_k)<<endl;
+		car_pos_final_xy = tools.getXY(final_s,d,maps_s,maps_x,maps_y);
+
+		ds = final_s - end_path_s;
+		dx = car_pos_final_xy[0]-x_k;
+		dy = car_pos_final_xy[1]-y_k;
+
+		double dist_xy = sqrt(dx*dx+dy*dy);
+		double dist_sd = sqrt(ds*ds +(car_d-d)*(car_d-d));
+
+		if((dist_xy-dist_sd)>0){
+			final_s = final_s - (dist_xy-dist_sd);
+		}
 
 		car_pos_final_xy = tools.getXY(final_s,d,maps_s,maps_x,maps_y);
 
-		cout<<"x_diff:"<<(next_x_vals[prev_path_size-1]- x_k)<<endl;
-		cout<<"y_diff:"<<(next_y_vals[prev_path_size-1]- y_k)<<endl;
+		cout<<"distance_traveled_freenet:"<<dist_sd<<endl;
+		cout<<"distance traveled xy:"<<dist_xy<<endl;
+		cout<<"end path s error:"<<end_path_s - init_pos_sd[0]<<endl;
+
+		//cout<<"x_diff:"<<(next_x_vals[prev_path_size-1]- x_k)<<endl;
+		//cout<<"y_diff:"<<(next_y_vals[prev_path_size-1]- y_k)<<endl;
 
 		initial_state_x.push_back(x_k);
 		initial_state_x.push_back(x_dot_k);
@@ -237,8 +278,8 @@ vector<vector<double>> TrajectoryGen::KeepLane(const double &car_s,const double 
 	return result;
 }
 
-vector<double> TrajectoryGen::JMT(vector< double> start, vector <double> end, double T)
-{
+vector<double> TrajectoryGen::JMT(vector< double> start, vector <double> end, double T){
+
     /*
     Calculate the Jerk Minimizing Trajectory that connects the initial state
     to the final state in time T.
@@ -287,4 +328,99 @@ vector<double> TrajectoryGen::JMT(vector< double> start, vector <double> end, do
 
 }
 
+double TrajectoryGen::state_machine(){
+
+	//vector<double> result;
+	double set_speed = 20;
+
+	unordered_map<double,vector<double>> SensorFusion;
+
+	for(int i = 0;i<sensor_fusion.size();i++){
+		SensorFusion.insert(pair<double,vector<double>> (sensor_fusion[i][0],sensor_fusion[i]));
+	}
+
+	double distance_front_left = 10000,distance_front_center = 10000, distance_front_right = 10000;
+	double id_front_left,id_front_center,id_front_right;
+	double id,x,y,vx,vy,s,d;
+
+	for(int i = 0;i<sensor_fusion.size();i++){
+
+			SensorFusion.insert(pair<double,vector<double>> (sensor_fusion[i][0],sensor_fusion[i]));
+
+			id = sensor_fusion[i][0];
+			x = sensor_fusion[i][1];
+			y = sensor_fusion[i][2];
+			vx = sensor_fusion[i][3];
+			vy = sensor_fusion[i][4];
+			s = sensor_fusion[i][5];
+			d = sensor_fusion[i][6];
+
+			if(d>0 and d<=4 and s>car_s){
+				if((s - car_s)<distance_front_left){
+					distance_front_left = s -car_s;
+					id_front_left = id;
+				}
+			}
+
+			if(d>4 and d<=8 and s>car_s){
+				if((s - car_s)<distance_front_center){
+					distance_front_center = s -car_s;
+					id_front_center = id;
+				}
+			}
+
+			if(d>8 and d<=12 and s>car_s){
+				if((s - car_s)<distance_front_right){
+					distance_front_right = s -car_s;
+					id_front_right = id;
+				}
+			}
+	}
+
+	int car_lane;
+	double distance_front,front_car_speed,relative_speed;
+	vector<double> front_car;
+	double dt = 0.02,path_len = 100;
+	double TotalTime = dt*path_len;
+	double distance_treshold = 50;
+	double min_distance = 10;
+	double front_car_new_s, car_new_s,avg_speed,distance_new;
+
+	if(car_d>0 and car_d<=4){
+		car_lane = 0;
+		distance_front = distance_front_left;
+		front_car = SensorFusion[id_front_left];
+	}else if(car_d>4 and car_d<=8){
+		car_lane = 1;
+		distance_front = distance_front_center;
+		front_car = SensorFusion[id_front_center];
+	}else if(car_d>8 and car_d<=12){
+		car_lane = 2;
+		distance_front = distance_front_right;
+		front_car = SensorFusion[id_front_right];
+	}
+	if(!front_car.empty()){
+		front_car_speed = sqrt(pow(front_car[3],2)+pow(front_car[4],2));
+		cout<<"Front Car distance:"<<distance_front<<endl;
+		relative_speed = car_speed - front_car_speed;
+
+		if (relative_speed > 0 && distance_front < distance_treshold){
+			set_speed = car_speed - relative_speed;
+		}
+
+		front_car_new_s = (front_car_speed*TotalTime+front_car[5]);
+		car_new_s = (car_s + (set_speed+car_speed)/2*TotalTime);
+
+		double distance_new = front_car_new_s - car_new_s;
+
+		if(distance_new < min_distance){
+			avg_speed = (front_car_new_s - min_distance - car_s)/TotalTime;
+			set_speed = 2*avg_speed - car_speed;
+		}
+	}
+
+	return set_speed;
+
+
+}
 

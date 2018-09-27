@@ -20,14 +20,22 @@ using namespace std;
 class TrajectoryGen{
 public:
 
+	double car_s,car_d,car_speed,end_path_s,end_path_d,car_yaw;
+	vector<double> maps_s,maps_x,maps_y,previous_path_x,previous_path_y;
+	vector<vector<double>> sensor_fusion;
+
 	TrajectoryGen();
+	void Init(const double &car_s_in,const double &car_d_in,const double &car_speed_in,const vector<double> &maps_s_in,
+			const vector<double> &maps_x_in,const vector<double> &maps_y_in,const vector<double> &previous_path_x_in,const vector<double> &previous_path_y_in,
+			const double end_path_s_in,const double end_path_d_in,const vector<vector<double>> &sensor_fusion_in,const double car_yaw_in);
 
 	virtual ~TrajectoryGen();
 
-	vector<vector<double>> KeepLane(const double &car_s,const double &car_d,const double &car_speed,const vector<double> &maps_s,
-		const vector<double> &maps_x, const vector<double> &maps_y,const vector<double> &previous_path_x, const vector<double> &previous_path_y,double end_path_s, double end_path_d);
+	vector<vector<double>> KeepLane();
 
 	vector<double> JMT(vector< double> start, vector <double> end, double T);
+
+	double state_machine();
 
 
 };
