@@ -272,11 +272,11 @@ int main() {
           	vector<double> next_x_vals;
           	vector<double> next_y_vals;
 
-          	TrajectoryGen trajectory;
+          	PathPlanning path_planner;
 
-          	trajectory.Init(car_s,car_d,car_speed,map_waypoints_s,map_waypoints_x,map_waypoints_y,previous_path_x,previous_path_y,end_path_s,end_path_d,sensor_fusion,car_yaw);
+          	path_planner.Init(car_s,car_d,car_speed,map_waypoints_s,map_waypoints_x,map_waypoints_y,previous_path_x,previous_path_y,end_path_s,end_path_d,sensor_fusion,car_yaw);
 
-          	vector<vector<double>> traj = trajectory.KeepLane();
+          	vector<vector<double>> traj = path_planner.GenerateTrajectory();
 
           	next_x_vals = traj[0];
           	next_y_vals = traj[1];

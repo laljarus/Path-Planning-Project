@@ -21,10 +21,10 @@ using Eigen::VectorXd;
 
 Tools tools;
 
-TrajectoryGen::TrajectoryGen(){}
-TrajectoryGen::~TrajectoryGen(){}
+PathPlanning::PathPlanning(){}
+PathPlanning::~PathPlanning(){}
 
-void TrajectoryGen::Init(const double &car_s_in,const double &car_d_in,const double &car_speed_in,const vector<double> &maps_s_in,
+void PathPlanning::Init(const double &car_s_in,const double &car_d_in,const double &car_speed_in,const vector<double> &maps_s_in,
 		const vector<double> &maps_x_in,const vector<double> &maps_y_in,const vector<double> &previous_path_x_in,const vector<double> &previous_path_y_in,
 		const double end_path_s_in,const double end_path_d_in,const vector<vector<double>> &sensor_fusion_in,const double car_yaw_in){
 
@@ -43,10 +43,10 @@ void TrajectoryGen::Init(const double &car_s_in,const double &car_d_in,const dou
 
 }
 
-vector<vector<double>> TrajectoryGen::KeepLane(){
+vector<vector<double>> PathPlanning::GenerateTrajectory(){
 
 	//double acc = 6;
-	double set_speed = TrajectoryGen::state_machine(); // velocity in m/s
+	double set_speed = PathPlanning::state_machine(); // velocity in m/s
 	double speed_limit = 21.5;
 	int path_len = 101;
 	double Total_time = (path_len-1)*0.02; // time in seconds
@@ -140,8 +140,8 @@ vector<vector<double>> TrajectoryGen::KeepLane(){
 		cout<<"ds_dot:"<<(set_speed - car_speed)<<endl;
 
 
-		coefficients_x = TrajectoryGen::JMT(initial_state_x,final_state_x,Total_time);
-		coefficients_y = TrajectoryGen::JMT(initial_state_y,final_state_y,Total_time);
+		coefficients_x = PathPlanning::JMT(initial_state_x,final_state_x,Total_time);
+		coefficients_y = PathPlanning::JMT(initial_state_y,final_state_y,Total_time);
 
 		for(int i = 0;i<path_len;i++){
 
@@ -244,8 +244,8 @@ vector<vector<double>> TrajectoryGen::KeepLane(){
 		final_state_y.push_back(set_speed*sin(car_pos_final_xy[2]));
 		final_state_y.push_back(0);
 
-		coefficients_x = TrajectoryGen::JMT(initial_state_x,final_state_x,Total_time);
-		coefficients_y = TrajectoryGen::JMT(initial_state_y,final_state_y,Total_time);
+		coefficients_x = PathPlanning::JMT(initial_state_x,final_state_x,Total_time);
+		coefficients_y = PathPlanning::JMT(initial_state_y,final_state_y,Total_time);
 
 		for(int i = 0;i<(path_len-prev_path_weight);i++){
 
@@ -278,7 +278,7 @@ vector<vector<double>> TrajectoryGen::KeepLane(){
 	return result;
 }
 
-vector<double> TrajectoryGen::JMT(vector< double> start, vector <double> end, double T){
+vector<double> PathPlanning::JMT(vector< double> start, vector <double> end, double T){
 
     /*
     Calculate the Jerk Minimizing Trajectory that connects the initial state
@@ -328,7 +328,7 @@ vector<double> TrajectoryGen::JMT(vector< double> start, vector <double> end, do
 
 }
 
-double TrajectoryGen::state_machine(){
+double PathPlanning::state_machine(){
 
 	//vector<double> result;
 	double set_speed = 20;

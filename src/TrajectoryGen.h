@@ -17,21 +17,21 @@
 
 using namespace std;
 
-class TrajectoryGen{
+class PathPlanning{
 public:
 
 	double car_s,car_d,car_speed,end_path_s,end_path_d,car_yaw;
 	vector<double> maps_s,maps_x,maps_y,previous_path_x,previous_path_y;
 	vector<vector<double>> sensor_fusion;
 
-	TrajectoryGen();
+	PathPlanning();
 	void Init(const double &car_s_in,const double &car_d_in,const double &car_speed_in,const vector<double> &maps_s_in,
 			const vector<double> &maps_x_in,const vector<double> &maps_y_in,const vector<double> &previous_path_x_in,const vector<double> &previous_path_y_in,
 			const double end_path_s_in,const double end_path_d_in,const vector<vector<double>> &sensor_fusion_in,const double car_yaw_in);
 
-	virtual ~TrajectoryGen();
+	virtual ~PathPlanning();
 
-	vector<vector<double>> KeepLane();
+	vector<vector<double>> GenerateTrajectory();
 
 	vector<double> JMT(vector< double> start, vector <double> end, double T);
 
