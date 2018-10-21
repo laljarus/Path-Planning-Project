@@ -26,7 +26,7 @@ PathPlanning::~PathPlanning(){}
 
 void PathPlanning::Init(const double &car_s_in,const double &car_d_in,const double &car_speed_in,const vector<double> &maps_s_in,
 		const vector<double> &maps_x_in,const vector<double> &maps_y_in,const vector<double> &previous_path_x_in,const vector<double> &previous_path_y_in,
-		const double end_path_s_in,const double end_path_d_in,const vector<vector<double>> &sensor_fusion_in,const double car_yaw_in){
+		const double end_path_s_in,const double end_path_d_in,const vector<vector<double>> &sensor_fusion_in,const double &car_yaw_in,const bool &initialize_in){
 
 			car_yaw = car_yaw_in;
 			car_s = car_s_in;
@@ -40,6 +40,8 @@ void PathPlanning::Init(const double &car_s_in,const double &car_d_in,const doub
 			end_path_s = end_path_s_in;
 			end_path_d = end_path_d_in;
 			sensor_fusion = sensor_fusion_in;
+			initialized = initialize_in;
+
 
 }
 
@@ -69,7 +71,6 @@ vector<vector<double>> PathPlanning::GenerateTrajectory(){
 	vector<double> final_state_y;
 
 	double time;
-	double dt = 0.02;
 
 	vector<double> pos;
 	double x,y;
@@ -328,24 +329,45 @@ vector<double> PathPlanning::JMT(vector< double> start, vector <double> end, dou
 
 }
 
+
 double PathPlanning::state_machine(){
+	double set_speed;
+
+	sensor_fusion_processing();
+
+	set_speed = keep_lane();
+
+	return set_speed;
+}
+
+
+void PathPlanning::sensor_fusion_processing(){
 
 	//vector<double> result;
 	double set_speed = 20;
 
-	unordered_map<double,vector<double>> SensorFusion;
-
-	for(int i = 0;i<sensor_fusion.size();i++){
-		SensorFusion.insert(pair<double,vector<double>> (sensor_fusion[i][0],sensor_fusion[i]));
-	}
+	/*for(int i = 0;i<sensor_fusion.size();i++){
+		SensorFusion_map.insert(pair<double,vector<double>> (sensor_fusion[i][0],sensor_fusion[i]));
+	}*/
 
 	double distance_front_left = 10000,distance_front_center = 10000, distance_front_right = 10000;
-	double id_front_left,id_front_center,id_front_right;
-	double id,x,y,vx,vy,s,d;
+	double distance_back_left = 10000,distance_back_center = 10000, distance_back_right = 10000;
+	double id_front_left,id_front_center,id_front_right,id_back_left,id_back_right,id_back_center;
+	double id,x,y,vx,vy,s,d,v,a;
+	vector<double> car,old_car;
+	vector<double> left_lane,right_lane,center_lane;
+	double average_speed_left = 30,average_speed_center = 30, average_speed_right = 30;
+	double total_speed_left = 0,total_speed_right = 0, total_speed_center = 0;
+	double n_left=0,n_center=0,n_right=0;
+	static vector<double> old_speed;
+	if(!initialized){
+		for(int i = 0;i<sensor_fusion.size();i++){
+			old_speed.push_back(0);
+		}
+	}
+
 
 	for(int i = 0;i<sensor_fusion.size();i++){
-
-			SensorFusion.insert(pair<double,vector<double>> (sensor_fusion[i][0],sensor_fusion[i]));
 
 			id = sensor_fusion[i][0];
 			x = sensor_fusion[i][1];
@@ -354,73 +376,170 @@ double PathPlanning::state_machine(){
 			vy = sensor_fusion[i][4];
 			s = sensor_fusion[i][5];
 			d = sensor_fusion[i][6];
+			v = sqrt(vx*vx+vy*vy);
+			a = (old_speed[id]-v)/dt;
+			old_speed[id] = v;
+			sensor_fusion[i].push_back(a);
 
-			if(d>0 and d<=4 and s>car_s){
-				if((s - car_s)<distance_front_left){
+			//car = sensor_fusion[i];
+			//sensor_fusion[i].push_back(1);
+			//  cout<<"id:"<<id<<endl;
+
+			/*if(!initialized){
+				//sensor_fusion[i].push_back(sqrt(vx*vx + vy*vy)); // current speed
+				sensor_fusion[i].push_back(0); // previous speed
+			} else {
+				//sensor_fusion[i].push_back(sqrt(vx*vx + vy*vy)); // current speed
+				old_car = SensorFusion_map[id];
+				cout<<"Old_car:"<<old_car.size()<<endl;
+				sensor_fusion[i].push_back(sqrt(old_car[3]*old_car[3]+old_car[4]*old_car[4]));
+
+			}*/
+			if(d>0 and d<=4){
+				sensor_fusion[i].push_back(0); // left lane
+				if(s>car_s){
+					n_left +=1;
+					total_speed_left += v;
+					average_speed_left = total_speed_left/n_left;
+				}
+
+				if(((s - car_s)<distance_front_left) and s>car_s){
 					distance_front_left = s -car_s;
 					id_front_left = id;
 				}
+
+				if(((car_s - s)<distance_back_left) and s<car_s){
+					distance_back_left = car_s -s;
+					id_back_left = id;
+				}
 			}
 
-			if(d>4 and d<=8 and s>car_s){
-				if((s - car_s)<distance_front_center){
+			if(d>4 and d<=8){
+				sensor_fusion[i].push_back(1); // center lane
+				if(s>car_s){
+					n_center +=1;
+					total_speed_center += v;
+					average_speed_center = total_speed_center/n_center;
+				}
+
+				if(((s - car_s)<distance_front_center)and s>car_s){
 					distance_front_center = s -car_s;
 					id_front_center = id;
 				}
+
+				if(((car_s - s)<distance_back_center) and s<car_s){
+					distance_back_center = car_s -s;
+					id_back_center = id;
+				}
+
 			}
 
-			if(d>8 and d<=12 and s>car_s){
-				if((s - car_s)<distance_front_right){
+			if(d>8 and d<=12){
+				sensor_fusion[i].push_back(2); // right lane.
+				if(s>car_s){
+					n_right +=1;
+					total_speed_right += v;
+					average_speed_right = total_speed_right/n_right;
+				}
+				if(((s - car_s)<distance_front_right) and s>car_s){
 					distance_front_right = s -car_s;
 					id_front_right = id;
 				}
+				if(((car_s - s)<distance_back_right) and s<car_s){
+					distance_back_right = car_s -s;
+					id_back_right = id;
+				}
 			}
+			car = sensor_fusion[i];
+			//cout<<"car size:"<<car.size()<<endl;
+			SensorFusion_map.insert({id,car});
+			cout<<"old speed:"<<SensorFusion_map[id].size()<<endl;
 	}
 
-	int car_lane;
-	double distance_front,front_car_speed,relative_speed;
-	vector<double> front_car;
-	double dt = 0.02,path_len = 100;
-	double TotalTime = dt*path_len;
-	double distance_treshold = 50;
-	double min_distance = 10;
-	double front_car_new_s, car_new_s,avg_speed,distance_new;
+	left_lane.push_back(average_speed_left);
+	left_lane.push_back(id_front_left);
+	left_lane.push_back(id_back_left);
 
-	if(car_d>0 and car_d<=4){
-		car_lane = 0;
-		distance_front = distance_front_left;
-		front_car = SensorFusion[id_front_left];
-	}else if(car_d>4 and car_d<=8){
-		car_lane = 1;
-		distance_front = distance_front_center;
-		front_car = SensorFusion[id_front_center];
-	}else if(car_d>8 and car_d<=12){
-		car_lane = 2;
-		distance_front = distance_front_right;
-		front_car = SensorFusion[id_front_right];
-	}
-	if(!front_car.empty()){
-		front_car_speed = sqrt(pow(front_car[3],2)+pow(front_car[4],2));
-		cout<<"Front Car distance:"<<distance_front<<endl;
-		relative_speed = car_speed - front_car_speed;
+	center_lane.push_back(average_speed_center);
+	center_lane.push_back(id_front_center);
+	center_lane.push_back(id_back_center);
 
-		if (relative_speed > 0 && distance_front < distance_treshold){
-			set_speed = car_speed - relative_speed;
-		}
+	right_lane.push_back(average_speed_right);
+	right_lane.push_back(id_front_right);
+	right_lane.push_back(id_back_right);
 
-		front_car_new_s = (front_car_speed*TotalTime+front_car[5]);
-		car_new_s = (car_s + (set_speed+car_speed)/2*TotalTime);
-
-		double distance_new = front_car_new_s - car_new_s;
-
-		if(distance_new < min_distance){
-			avg_speed = (front_car_new_s - min_distance - car_s)/TotalTime;
-			set_speed = 2*avg_speed - car_speed;
-		}
-	}
-
-	return set_speed;
-
+	lane_info.clear();
+	lane_info.push_back(left_lane);
+	lane_info.push_back(center_lane);
+	lane_info.push_back(right_lane);
 
 }
+
+double PathPlanning::keep_lane(){
+
+		int car_lane;
+		double set_speed = 20;
+		double distance_front,front_car_speed,relative_speed,acceleration;
+		vector<double> front_car;
+		double path_len = 100;
+		double TotalTime = dt*path_len;
+		double distance_treshold = 50;
+		double min_distance = 20;
+		double front_car_new_s, car_new_s,avg_speed,distance_new;
+		double id_front_left,id_front_center,id_front_right;
+		static double old_speed = 0;
+
+		id_front_left 	= lane_info[0][1];
+		id_front_center = lane_info[1][1];
+		id_front_right 	= lane_info[2][1];
+
+		if(car_d>0 and car_d<=4){
+			car_lane = 0;
+			if(SensorFusion_map.count(id_front_left)){
+				front_car = SensorFusion_map[id_front_left];
+				distance_front = front_car[5] - car_s;
+				cout<<"front car lane:"<<front_car[8]<<endl;
+			}
+		}else if(car_d>4 and car_d<=8){
+			car_lane = 1;
+			if(SensorFusion_map.count(id_front_center)){
+				front_car = SensorFusion_map[id_front_center];
+				distance_front = front_car[5] - car_s;
+				cout<<"front car lane:"<<front_car[8]<<endl;
+			}
+		}else if(car_d>8 and car_d<=12){
+			car_lane = 2;
+			if(SensorFusion_map.count(id_front_right)){
+				front_car = SensorFusion_map[id_front_right];
+				distance_front = front_car[5] - car_s;
+				cout<<"front car lane:"<<front_car[8]<<endl;
+			}
+		}
+
+		if(!front_car.empty()){
+
+			front_car_speed = sqrt(pow(front_car[3],2)+pow(front_car[4],2));
+			//cout<<"Front Car distance:"<<distance_front<<endl;
+			relative_speed = car_speed - front_car_speed;
+			acceleration = (front_car_speed - old_speed)/dt;
+			//cout<<"Acceleration:"<<acceleration<<endl;
+			old_speed = front_car_speed;
+
+			if (relative_speed > 0 && distance_front < distance_treshold){
+				 set_speed = car_speed - relative_speed;
+			}
+
+			front_car_new_s = (front_car_speed*TotalTime+front_car[5]);
+			car_new_s = (car_s + (set_speed+car_speed)/2*TotalTime);
+
+			double distance_new = front_car_new_s - car_new_s;
+
+			if(distance_new < min_distance){
+				avg_speed = (front_car_new_s - min_distance - car_s)/TotalTime;
+				set_speed = 2*avg_speed - car_speed;
+			}
+		}
+		return set_speed;
+}
+
 
