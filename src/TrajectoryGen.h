@@ -40,11 +40,12 @@ public:
 
 	virtual ~PathPlanning();
 
-	vector<vector<double>> GenerateTrajectory();
+	vector<vector<double>> GenerateTrajectory(double &set_speed,double &d);
 
-	vector<double> JMT(vector< double> start, vector <double> end, double T);
+	vector<double> JMT(vector<double> &start, vector<double> &end, double T);
 
-	double state_machine();
+	vector<vector<double>> state_machine();
+	vector<vector<double>> predict(double &car_id,int &path_len);
 
 	void sensor_fusion_processing();
 

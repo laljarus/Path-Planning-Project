@@ -45,11 +45,11 @@ void PathPlanning::Init(const double &car_s_in,const double &car_d_in,const doub
 
 }
 
-vector<vector<double>> PathPlanning::GenerateTrajectory(){
+vector<vector<double>> PathPlanning::GenerateTrajectory(double &set_speed,double &d){
 
 	//double acc = 6;
-	double set_speed = PathPlanning::state_machine(); // velocity in m/s
-	double d = 6;
+	//double set_speed = PathPlanning::state_machine(); // velocity in m/s
+	//double d = 6;
 	double speed_limit = 21.5;
 	int path_len = 101;
 	double Total_time = (path_len-1)*0.02; // time in seconds
@@ -103,12 +103,12 @@ vector<vector<double>> PathPlanning::GenerateTrajectory(){
 		set_speed = speed_limit;
 	}
 
-	double TimeToTurn = 20;
+	/*double TimeToTurn = 20;
 
 	if(counter > int(TimeToTurn/dt)){
 		d = 10;
 	}
-	counter++;
+	counter++;*/
 
 	//cout<<"Previous Path Size: "<<prev_path_size<<endl;
 	cout<<"set speed:"<<set_speed<<endl;
@@ -280,7 +280,7 @@ vector<vector<double>> PathPlanning::GenerateTrajectory(){
 	return result;
 }
 
-vector<double> PathPlanning::JMT(vector< double> start, vector <double> end, double T){
+vector<double> PathPlanning::JMT(vector<double> &start, vector<double> &end, double T){
 
     /*
     Calculate the Jerk Minimizing Trajectory that connects the initial state
@@ -331,19 +331,18 @@ vector<double> PathPlanning::JMT(vector< double> start, vector <double> end, dou
 }
 
 
-double PathPlanning::state_machine(){
-	double set_speed;
+vector<vector<double>> PathPlanning::state_machine(){
 
+	double set_speed,set_d;
+	vector<vector<double>> trajectory;
 	vector<string> possible_states;
 
-
-
 	bool toggle = false;
-
 	static int prev_lane = 1;
 	static int counter = 0;
 	static int counter_turn = 0;
 	static int new_lane = car_lane;
+	set_d = 6;
 
 	if((car_d>0 and car_d<=4) and new_lane !=0){
 		new_lane = 0;
@@ -362,6 +361,7 @@ double PathPlanning::state_machine(){
 	counter++;
 
 	prev_lane = car_lane;
+	cout<<"Car_d:"<<car_d<<endl;
 
 	if(state.compare("KL") == 0){
 		possible_states.push_back("KL");
@@ -378,10 +378,11 @@ double PathPlanning::state_machine(){
 	}
 
 	sensor_fusion_processing();
-
 	set_speed = keep_lane();
 
-	return set_speed;
+	trajectory = GenerateTrajectory(set_speed,set_d);
+
+	return trajectory;
 }
 
 
@@ -389,10 +390,6 @@ void PathPlanning::sensor_fusion_processing(){
 
 	//vector<double> result;
 	double set_speed = 20;
-
-	/*for(int i = 0;i<sensor_fusion.size();i++){
-		SensorFusion_map.insert(pair<double,vector<double>> (sensor_fusion[i][0],sensor_fusion[i]));
-	}*/
 
 	double distance_front_left = 10000,distance_front_center = 10000, distance_front_right = 10000;
 	double distance_back_left = 10000,distance_back_center = 10000, distance_back_right = 10000;
@@ -520,14 +517,13 @@ void PathPlanning::sensor_fusion_processing(){
 
 double PathPlanning::keep_lane(){
 
-		int car_lane;
 		double set_speed = 20.5;
 		double distance_front,front_car_speed,relative_speed,acceleration;
 		vector<double> front_car;
 		double path_len = 100;
 		double TotalTime = dt*path_len;
 		double distance_treshold = 50;
-		double min_distance = 20;
+		double min_distance = 30;
 		double front_car_new_s, car_new_s,avg_speed,distance_new;
 		double id_front_left,id_front_center,id_front_right;
 		static double old_speed = 0;
@@ -579,4 +575,49 @@ double PathPlanning::keep_lane(){
 		return set_speed;
 }
 
+vector<vector<double>> PathPlanning::predict(double &car_id,int &path_len){
+
+	// constant acceleration model prediction
+
+	vector<vector<double>> trajectory;
+	vector<double> x_vals;
+	vector<double> y_vals;
+	vector<double> car;
+
+	car = SensorFusion_map[car_id];
+	double vx = car[3];
+	double vy = car[4];
+	double s = car[5];
+	double d = car[6];
+	double a = car[7];
+	double lane = car[8];
+	double v = sqrt(vx*vx+vy+vy);
+	double time;
+	vector<double> pos_xy;
+
+	//x_vals.push_back(car[1]);
+	//y_vals.push_back(car[2]);
+
+	/*if(lane == 0){
+		d = 2;
+	}else if(lane == 1){
+		d = 6;
+	}else if(lane == 2){
+		d = 10;
+	}*/
+
+	for(int i = 0;i<path_len;i++){
+		v = v + a*dt;
+		s = s + v*dt;
+		pos_xy = tools.getXY(s,d,maps_s,maps_x,maps_y);
+		x_vals.push_back(pos_xy[0]);
+		y_vals.push_back(pos_xy[1]);
+	}
+
+	trajectory.push_back(x_vals);
+	trajectory.push_back(y_vals);
+
+	return trajectory;
+
+}
 

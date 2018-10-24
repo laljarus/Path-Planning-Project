@@ -146,7 +146,7 @@ int main() {
 
           	path_planner.Init(car_s,car_d,car_speed,map_waypoints_s,map_waypoints_x,map_waypoints_y,previous_path_x,previous_path_y,end_path_s,end_path_d,sensor_fusion,car_yaw,initialize);
 
-          	vector<vector<double>> traj = path_planner.GenerateTrajectory();
+          	vector<vector<double>> traj = path_planner.state_machine();
 
           	next_x_vals = traj[0];
           	next_y_vals = traj[1];
