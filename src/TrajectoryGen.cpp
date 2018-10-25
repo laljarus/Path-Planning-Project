@@ -333,7 +333,7 @@ vector<double> PathPlanning::JMT(vector<double> &start, vector<double> &end, dou
 
 vector<vector<double>> PathPlanning::state_machine(){
 
-	double set_speed,set_d;
+	double set_speed;
 	vector<vector<double>> trajectory;
 	vector<string> possible_states;
 
@@ -342,7 +342,8 @@ vector<vector<double>> PathPlanning::state_machine(){
 	static int counter = 0;
 	static int counter_turn = 0;
 	static int new_lane = car_lane;
-	set_d = 6;
+	static int lane_id = 0;
+	static double set_d = 6;
 
 	if((car_d>0 and car_d<=4) and new_lane !=0){
 		new_lane = 0;
@@ -361,7 +362,7 @@ vector<vector<double>> PathPlanning::state_machine(){
 	counter++;
 
 	prev_lane = car_lane;
-	cout<<"Car_d:"<<car_d<<endl;
+	cout<<"Car_s:"<<car_s<<endl;
 
 	if(state.compare("KL") == 0){
 		possible_states.push_back("KL");
@@ -376,6 +377,17 @@ vector<vector<double>> PathPlanning::state_machine(){
 	}else{
 		possible_states.push_back("KL");
 	}
+
+	vector<double> lane_d = {2,6,10};
+
+	if(counter_turn > 500){
+		counter_turn = 0;
+		lane_id =(lane_id+1)%3;
+		set_d = lane_d[lane_id];
+	}
+	counter_turn++;
+	//cout<<"counter_turn"<<counter_turn;
+	//cout<<"set_d"<<set_d;
 
 	sensor_fusion_processing();
 	set_speed = keep_lane();
@@ -394,16 +406,17 @@ void PathPlanning::sensor_fusion_processing(){
 	double distance_front_left = 10000,distance_front_center = 10000, distance_front_right = 10000;
 	double distance_back_left = 10000,distance_back_center = 10000, distance_back_right = 10000;
 	double id_front_left,id_front_center,id_front_right,id_back_left,id_back_right,id_back_center;
-	double id,x,y,vx,vy,s,d,v,a;
+	double id,x,y,vx,vy,s,d,v,ax,ay;
 	vector<double> car,old_car;
 	vector<double> left_lane,right_lane,center_lane;
 	double average_speed_left = 30,average_speed_center = 30, average_speed_right = 30;
 	double total_speed_left = 0,total_speed_right = 0, total_speed_center = 0;
 	double n_left=0,n_center=0,n_right=0;
-	static vector<double> old_speed;
+	static vector<double> old_speed_x,old_speed_y;
 	if(!initialized){
 		for(int i = 0;i<sensor_fusion.size();i++){
-			old_speed.push_back(0);
+			old_speed_x.push_back(0);
+			old_speed_y.push_back(0);
 		}
 	}
 
@@ -418,9 +431,12 @@ void PathPlanning::sensor_fusion_processing(){
 			s = sensor_fusion[i][5];
 			d = sensor_fusion[i][6];
 			v = sqrt(vx*vx+vy*vy);
-			a = (old_speed[id]-v)/dt;
-			old_speed[id] = v;
-			sensor_fusion[i].push_back(a);
+			ax = (old_speed_x[id]-vx)/dt;
+			ay = (old_speed_y[id]-vy)/dt;
+			old_speed_x[id] = vx;
+			old_speed_y[id] = vy;
+			sensor_fusion[i].push_back(ax);
+			sensor_fusion[i].push_back(ay);
 
 			//car = sensor_fusion[i];
 			//sensor_fusion[i].push_back(1);
@@ -552,10 +568,10 @@ double PathPlanning::keep_lane(){
 		if(!front_car.empty()){
 
 			front_car_speed = sqrt(pow(front_car[3],2)+pow(front_car[4],2));
-			cout<<"Front Car distance:"<<distance_front<<endl;
+			//cout<<"Front Car distance:"<<distance_front<<endl;
 			relative_speed = car_speed - front_car_speed;
 			acceleration = (car_speed - old_speed)/dt;
-			cout<<"Acceleration:"<<acceleration<<endl;
+			//cout<<"Acceleration:"<<acceleration<<endl;
 			old_speed = car_speed;
 
 			if (relative_speed > 0 && distance_front < distance_treshold){
@@ -589,11 +605,22 @@ vector<vector<double>> PathPlanning::predict(double &car_id,int &path_len){
 	double vy = car[4];
 	double s = car[5];
 	double d = car[6];
-	double a = car[7];
+	double ax = car[7];
+	double ay = car[8];
 	double lane = car[8];
 	double v = sqrt(vx*vx+vy+vy);
-	double time;
+	double yaw;
+	vector<double> init_pos_xy;
 	vector<double> pos_xy;
+
+	init_pos_xy = tools.getXY(s,d,maps_s,maps_x,maps_y);
+	yaw = init_pos_xy[2];
+
+	double vs = vx*cos(yaw)-vy*sin(yaw);
+	double vd = vx*sin(yaw)-vy*cos(yaw);
+
+	double as = vx*cos(yaw)-vy*sin(yaw);
+	double ad = vx*sin(yaw)-vy*cos(yaw);
 
 	//x_vals.push_back(car[1]);
 	//y_vals.push_back(car[2]);
@@ -607,8 +634,8 @@ vector<vector<double>> PathPlanning::predict(double &car_id,int &path_len){
 	}*/
 
 	for(int i = 0;i<path_len;i++){
-		v = v + a*dt;
-		s = s + v*dt;
+		vs = vs + as*dt;
+		s = s + vs*dt;
 		pos_xy = tools.getXY(s,d,maps_s,maps_x,maps_y);
 		x_vals.push_back(pos_xy[0]);
 		y_vals.push_back(pos_xy[1]);
