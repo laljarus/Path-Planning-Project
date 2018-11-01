@@ -264,7 +264,7 @@ vector<vector<double>> PathPlanning::GenerateTrajectory(double &set_speed,double
 		coefficients_x = PathPlanning::JMT(initial_state_x,final_state_x,Total_time);
 		coefficients_y = PathPlanning::JMT(initial_state_y,final_state_y,Total_time);
 
-		for(int i = 0;i<(path_len-prev_path_weight);i++){
+		for(int i = 1;i<(path_len-prev_path_weight);i++){
 
 			time = dt*i;
 			x = coefficients_x[0] + coefficients_x[1]*time+ coefficients_x[2]*pow(time,2)
