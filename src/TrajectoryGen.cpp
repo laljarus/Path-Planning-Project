@@ -218,11 +218,25 @@ vector<vector<double>> PathPlanning::GenerateTrajectory(double &set_speed,double
 		double dist_xy = sqrt(dx*dx+dy*dy);
 		double dist_sd = sqrt(ds*ds +(car_d-d)*(car_d-d));
 
+		if(dist_xy > speed_limit*Total_time){
+			final_s = speed_limit*Total_time - abs(car_d - d) + end_path_s;
+		}
+
+		car_pos_final_xy = tools.getXY(final_s,d,maps_s,maps_x,maps_y);
+
+		ds = final_s - end_path_s;
+		dx = car_pos_final_xy[0]-x_k;
+		dy = car_pos_final_xy[1]-y_k;
+
+		dist_xy = sqrt(dx*dx+dy*dy);
+		dist_sd = sqrt(ds*ds +(car_d-d)*(car_d-d));
+
 		if((dist_xy-dist_sd)>0){
 			final_s = final_s - (dist_xy-dist_sd);
 		}
 
 		car_pos_final_xy = tools.getXY(final_s,d,maps_s,maps_x,maps_y);
+
 
 		//cout<<"distance_traveled_freenet:"<<dist_sd<<endl;
 		//cout<<"distance traveled xy:"<<dist_xy<<endl;
@@ -357,7 +371,7 @@ vector<vector<double>> PathPlanning::state_machine(){
 	static int init_lane = 1;
 
 	double weightInefficiencyCost = 1;
-	double weightAccelerationCost = 1;
+	double weightAccelerationCost = 5;
 	double weightCollisionCost   = 10;
 
 	if((car_d>0 and car_d<=4) and car_lane !=0){
@@ -419,7 +433,7 @@ vector<vector<double>> PathPlanning::state_machine(){
 
 		if(car_speed > init_speed){
 			counter_init++;
-			if(counter_init > 50){
+			if(counter_init > 100){
 				state = KL;
 				counter_init = 0;
 			}
