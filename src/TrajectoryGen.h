@@ -23,14 +23,13 @@ public:
 
 	double car_s,car_d,car_speed,end_path_s,end_path_d,car_yaw;
 	double dt = 0.02;
-	int car_lane = 1;
+	int car_lane;
 	vector<double> maps_s,maps_x,maps_y,previous_path_x,previous_path_y;
 	vector<vector<double>> sensor_fusion;
 
 	unordered_map<double,vector<double>> SensorFusion_map;
 	vector<vector<double>> lane_info;
 
-	string state = "KL";
 	bool initialized;
 
 	PathPlanning();
@@ -50,6 +49,11 @@ public:
 	void sensor_fusion_processing();
 
 	double keep_lane();
+
+	double InefficiencyCost(double &target_speed,double &intended_lane);
+	double CollisionCost(vector<vector<double>> &trajectory,double &intended_lane);
+	double AccelerationAndJerkCost(vector<vector<double>> &trajectory);
+	double MinDistance(vector<vector<double>> &trajectory_1, vector<vector<double>> &trajectory_2);
 
 
 
