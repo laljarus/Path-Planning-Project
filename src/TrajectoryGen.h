@@ -39,7 +39,7 @@ public:
 
 	virtual ~PathPlanning();
 
-	vector<vector<double>> GenerateTrajectory(double &set_speed,double &d);
+	vector<vector<double>> GenerateTrajectory(double &set_speed,double &d,int &path_len);
 
 	vector<double> JMT(vector<double> &start, vector<double> &end, double T);
 

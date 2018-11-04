@@ -45,13 +45,13 @@ void PathPlanning::Init(const double &car_s_in,const double &car_d_in,const doub
 
 }
 
-vector<vector<double>> PathPlanning::GenerateTrajectory(double &set_speed,double &d){
+vector<vector<double>> PathPlanning::GenerateTrajectory(double &set_speed,double &d,int &path_len){
 
 	//double acc = 6;
 	//double set_speed = PathPlanning::state_machine(); // velocity in m/s
 	//double d = 6;
 	double speed_limit = 21.5;
-	int path_len = 75;
+	//int path_len = 75;
 	double Total_time = (path_len-1)*0.02; // time in seconds
 	double avg_speed;
 	//static int counter = 0;
@@ -75,22 +75,28 @@ vector<vector<double>> PathPlanning::GenerateTrajectory(double &set_speed,double
 
 	vector<double> pos;
 	double x,y;
-
+	double ds_dot_limit;
 	double final_s;
 	vector<double> car_pos_init_xy;
 	vector<double> car_pos_final_xy;
 	vector<double> coefficients_x,coefficients_y;
 
 
-	int prev_path_weight = 50;
+	int prev_path_weight = path_len*3/4;
 
 	int prev_path_size = previous_path_x.size();
 
+	if(path_len > 80){
+		ds_dot_limit = 8;
+	}else {
+		ds_dot_limit = 6;
+	}
 
-	if((set_speed-car_speed)>8){
-		set_speed = car_speed+8;
-	}else if ((car_speed - set_speed)>8){
-		set_speed = car_speed-8 ;
+
+	if((set_speed-car_speed)>ds_dot_limit){
+		set_speed = car_speed+ds_dot_limit;
+	}else if ((car_speed - set_speed)>ds_dot_limit){
+		set_speed = car_speed-ds_dot_limit;
 	}
 
 	avg_speed = (car_speed+set_speed)/2;
@@ -101,6 +107,12 @@ vector<vector<double>> PathPlanning::GenerateTrajectory(double &set_speed,double
 
 	if(set_speed > speed_limit){
 		set_speed = speed_limit;
+	}
+
+	if((d - car_d)>4){
+		d = car_d +4;
+	}else if((car_d -d)>4 ){
+		d = car_d -4;
 	}
 
 	//double TimeToTurn = 20;
@@ -351,6 +363,7 @@ vector<vector<double>> PathPlanning::state_machine(){
 	double set_speed;
 	static double lane_change_speed = 10;
 	double target_speed = 21;
+	int path_len_kl = 75,path_len_lane_change = 101;
 	enum States {Init,KL,TR,TL};
 	vector<vector<double>> trajectory;
 	vector<States> possible_states;
@@ -429,7 +442,7 @@ vector<vector<double>> PathPlanning::state_machine(){
 
 		static int counter_init = 0;
 		set_speed = target_speed;
-		trajectory = GenerateTrajectory(set_speed,lane_d[init_lane]);
+		trajectory = GenerateTrajectory(set_speed,lane_d[init_lane],path_len_kl);
 
 		if(car_speed > init_speed){
 			counter_init++;
@@ -468,13 +481,13 @@ vector<vector<double>> PathPlanning::state_machine(){
 
 
 			set_speed = keep_lane();
-			trajectory = GenerateTrajectory(set_speed,lane_d[car_lane]);
+			trajectory = GenerateTrajectory(set_speed,lane_d[car_lane],path_len_kl);
 
 		}else if(front_car.empty() || front_car_distance > 60){
 
 			cout<<"Sub state: KeepLane"<<endl;
 			set_speed = keep_lane();
-			trajectory = GenerateTrajectory(set_speed,lane_d[car_lane]);
+			trajectory = GenerateTrajectory(set_speed,lane_d[car_lane],path_len_kl);
 			state = KL;
 
 		}else{
@@ -491,7 +504,7 @@ vector<vector<double>> PathPlanning::state_machine(){
 						case KL:
 
 							set_speed = keep_lane();
-							trajectory_kl = GenerateTrajectory(set_speed,lane_d[car_lane]);
+							trajectory_kl = GenerateTrajectory(set_speed,lane_d[car_lane],path_len_kl);
 							cost_kl = weightInefficiencyCost * InefficiencyCost(target_speed,car_lane_double) + weightAccelerationCost * AccelerationAndJerkCost(trajectory_kl) +
 									  weightCollisionCost*CollisionCost(trajectory_kl,car_lane_double);
 							cout<<"Cost KL:"<<cost_kl<<endl;
@@ -507,7 +520,7 @@ vector<vector<double>> PathPlanning::state_machine(){
 						case TL:
 
 							set_speed = car_speed;
-							trajectory_tl = GenerateTrajectory(set_speed,lane_d[(car_lane-1)%3]);
+							trajectory_tl = GenerateTrajectory(set_speed,lane_d[(car_lane-1)%3],path_len_lane_change);
 							cost_tl = weightInefficiencyCost * InefficiencyCost(target_speed,car_lane_tl) + weightAccelerationCost * AccelerationAndJerkCost(trajectory_tl)
 										+ weightCollisionCost*CollisionCost(trajectory_tl,car_lane_tl);
 							cout<<"Cost TL:"<<cost_tl<<endl;
@@ -521,7 +534,7 @@ vector<vector<double>> PathPlanning::state_machine(){
 							break;
 						case TR:
 							set_speed = car_speed;
-							trajectory_tr = GenerateTrajectory(set_speed,lane_d[(car_lane+1)%3]);
+							trajectory_tr = GenerateTrajectory(set_speed,lane_d[(car_lane+1)%3],path_len_lane_change);
 							cost_tr = weightInefficiencyCost * InefficiencyCost(target_speed,car_lane_tr) + weightAccelerationCost*AccelerationAndJerkCost(trajectory_tr)
 										+ weightCollisionCost*CollisionCost(trajectory_tr,car_lane_tr);
 							cout<<"Cost TR:"<<cost_tr<<endl;
@@ -542,7 +555,7 @@ vector<vector<double>> PathPlanning::state_machine(){
 
 
 	}else {
-		trajectory = GenerateTrajectory(lane_change_speed,lane_d[next_lane]);
+		trajectory = GenerateTrajectory(lane_change_speed,lane_d[next_lane],path_len_lane_change);
 		cout<<"lane change speed:"<<lane_change_speed<<endl;
 		if(car_lane == next_lane) {
 			state = KL;
@@ -703,7 +716,7 @@ double PathPlanning::keep_lane(){
 		double path_len = 75;
 		double TotalTime = dt*path_len;
 		double distance_treshold = 50;
-		double min_distance = 30;
+		double min_distance = 25;
 		double front_car_new_s, car_new_s,avg_speed,distance_new;
 		double front_car_id;
 		static double old_speed = 0;
@@ -872,13 +885,25 @@ double PathPlanning::AccelerationAndJerkCost(vector<vector<double>> &trajectory)
 
 double PathPlanning::CollisionCost(vector<vector<double>> &trajectory,double &new_lane){
 	double cost;
-	double front_car_id,new_lane_front_car_id,new_lane_back_car_id;
+	double front_car_id,new_lane_front_car_id,new_lane_back_car_id,car_id;
 	vector<double> car;
 	front_car_id = lane_info[car_lane][1];
 	new_lane_front_car_id = lane_info[new_lane][1];
 	new_lane_back_car_id = lane_info[new_lane][2];
 	int path_len = trajectory[0].size();
-	double min_distance_1 = 1000,min_distance_2 = 1000,min_distance_3 = 1000,min_distance = 1000;
+	double min_distance_1 = 1000,min_distance_2 = 1000,min_distance_3 = 1000,min_distance = 1000,distance = 1000;
+	vector<vector<double>> trajectory_next_car;
+
+	/*for(auto it = SensorFusion_map.begin();it != SensorFusion_map.end(); it++){
+		car_id = it->first;
+		trajectory_next_car = predict(car_id,path_len);
+		distance = MinDistance(trajectory,trajectory_next_car);
+
+		if(distance < min_distance){
+			min_distance = distance;
+		}
+
+	}*/
 
 	car = SensorFusion_map[front_car_id];
 	if(!car.empty()){
@@ -901,14 +926,14 @@ double PathPlanning::CollisionCost(vector<vector<double>> &trajectory,double &ne
 	min_distance = min(min_distance_1,min_distance_2);
 	min_distance = min(min_distance,min_distance_3);
 
-	if(min_distance < 30){
+	/*if(min_distance < 30){
 		cost = 1-(min_distance/30);
 	}else{
 		cost = 0;
-	}
+	}*/
 	cout<<"Min Distance:"<<min_distance<<endl;
 
-	//cost = exp(-0.1*min_distance);
+	cost = exp(-0.1*min_distance);
 
 	return cost;
 }
