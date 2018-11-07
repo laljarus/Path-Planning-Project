@@ -361,7 +361,7 @@ vector<double> PathPlanning::JMT(vector<double> &start, vector<double> &end, dou
 vector<vector<double>> PathPlanning::state_machine(){
 
 	double set_speed;
-	static double lane_change_speed = 10;
+	static double lane_change_speed = 10,cost_diff = 0;
 	double target_speed = 21;
 	int path_len_kl = 75,path_len_lane_change = 101;
 	enum States {Init,KL,TR,TL};
@@ -468,30 +468,20 @@ vector<vector<double>> PathPlanning::state_machine(){
 			front_car_distance = front_car[5]-car_s;
 		}
 
-
-		if(car_speed < 10){
-			cout<<"Sub state: ToInit"<<endl;
-
-			counter_kl++;
-			if(counter_kl > 100){
-				state = Init;
-				init_lane = car_lane;
-				counter_kl = 0;
+		if(front_car.empty() || front_car_distance > 60 || front_car_distance < 20 ){
+			if(!front_car.empty()){
+				cout<<"Sub state: KeepLane : "<< front_car_distance<<endl;
+			}else{
+				cout<<"Sub state: KeepLane : "<<endl;
 			}
-
-
-			set_speed = keep_lane();
-			trajectory = GenerateTrajectory(set_speed,lane_d[car_lane],path_len_kl);
-
-		}else if(front_car.empty() || front_car_distance > 60){
-
-			cout<<"Sub state: KeepLane"<<endl;
+			
 			set_speed = keep_lane();
 			trajectory = GenerateTrajectory(set_speed,lane_d[car_lane],path_len_kl);
 			state = KL;
 
 		}else{
-			cout<<"Sub state: Look for changing lane"<<endl;
+			cout<<"Sub state: Look for changing lane"<<front_car_distance<<endl;
+			
 			for(int i = 0; i < possible_states.size();i++) {
 
 						States possible_state = possible_states[i];
@@ -509,7 +499,7 @@ vector<vector<double>> PathPlanning::state_machine(){
 									  weightCollisionCost*CollisionCost(trajectory_kl,car_lane_double);
 							cout<<"Cost KL:"<<cost_kl<<endl;
 
-							if(cost_kl<min_cost){
+							if(cost_kl < min_cost){
 								trajectory = trajectory_kl;
 								state = KL;
 								next_lane = car_lane;
@@ -524,11 +514,12 @@ vector<vector<double>> PathPlanning::state_machine(){
 							cost_tl = weightInefficiencyCost * InefficiencyCost(target_speed,car_lane_tl) + weightAccelerationCost * AccelerationAndJerkCost(trajectory_tl)
 										+ weightCollisionCost*CollisionCost(trajectory_tl,car_lane_tl);
 							cout<<"Cost TL:"<<cost_tl<<endl;
-							if(cost_tl < min_cost){
+							if((min_cost - cost_tl) > 0.1){
 								trajectory = trajectory_tl;
 								state = TL;
 								lane_change_speed  = car_speed;
 								next_lane = (car_lane - 1) % 3;
+								cost_diff = cost_kl - cost_tl;
 								min_cost = cost_tl;
 							}
 							break;
@@ -538,11 +529,12 @@ vector<vector<double>> PathPlanning::state_machine(){
 							cost_tr = weightInefficiencyCost * InefficiencyCost(target_speed,car_lane_tr) + weightAccelerationCost*AccelerationAndJerkCost(trajectory_tr)
 										+ weightCollisionCost*CollisionCost(trajectory_tr,car_lane_tr);
 							cout<<"Cost TR:"<<cost_tr<<endl;
-							if(cost_tr < min_cost){
+							if((min_cost - cost_tr) > 0.1){
 								trajectory = trajectory_tr;
 								state = TR;
 								lane_change_speed  = car_speed;
 								next_lane = (car_lane + 1) % 3;
+								cost_diff = cost_kl - cost_tr;
 								min_cost = cost_tr;
 							}
 							break;
@@ -556,7 +548,7 @@ vector<vector<double>> PathPlanning::state_machine(){
 
 	}else {
 		trajectory = GenerateTrajectory(lane_change_speed,lane_d[next_lane],path_len_lane_change);
-		cout<<"lane change speed:"<<lane_change_speed<<endl;
+		cout<<"cost difference:"<<cost_diff<<endl;
 		if(car_lane == next_lane) {
 			state = KL;
 			//min_cost  = 1000;
@@ -812,13 +804,25 @@ vector<vector<double>> PathPlanning::predict(double &car_id,int &path_len) {
 }
 
 double PathPlanning::InefficiencyCost(double &target_speed,double &intended_lane){
-	double cost;
+	double cost_speed,cost_distance,cost;
 
 	double avg_speed_current_lane = lane_info[car_lane][0];
 	double avg_speed_new_lane = lane_info[intended_lane][0];
+	double front_car_new_lane_id = lane_info[intended_lane][1];
+	double distance_new_lane = 100;
+	vector<double> front_car = SensorFusion_map[front_car_new_lane_id];
 
-	cost = (2.0*target_speed - avg_speed_current_lane - avg_speed_new_lane)/target_speed;
+	if(!front_car.empty()){
 
+		distance_new_lane = front_car[5] - car_s;
+	}
+
+	cost_speed = (target_speed - avg_speed_new_lane)/target_speed;
+
+	cost_distance = exp(-0.05*distance_new_lane);
+
+
+	cost = 0.7*cost_distance + 0.3*cost_speed;
 
 	return cost;
 }
