@@ -475,12 +475,12 @@ vector<vector<double>> PathPlanning::state_machine(){
 				cout<<"Sub state: KeepLane : "<<endl;
 			}
 			
-			set_speed = keep_lane();
+			set_speed = keep_lane(target_speed,car_lane);
 			trajectory = GenerateTrajectory(set_speed,lane_d[car_lane],path_len_kl);
 			state = KL;
 
 		}else{
-			cout<<"Sub state: Look for changing lane"<<front_car_distance<<endl;
+			cout<<"Sub state: Look for changing lane:"<<front_car_distance<<endl;
 			
 			for(int i = 0; i < possible_states.size();i++) {
 
@@ -488,12 +488,14 @@ vector<vector<double>> PathPlanning::state_machine(){
 						double car_lane_double = (double)car_lane;
 						double car_lane_tl = fmod ((car_lane_double - 1.0), 3.0);
 						double car_lane_tr = fmod ((car_lane_double + 1.0), 3.0);
+						int lane_tl = (car_lane-1)%3;
+						int lane_tr = (car_lane+1)%3;
 
 						switch(possible_state){
 
 						case KL:
 
-							set_speed = keep_lane();
+							set_speed = keep_lane(target_speed,car_lane);
 							trajectory_kl = GenerateTrajectory(set_speed,lane_d[car_lane],path_len_kl);
 							cost_kl = weightInefficiencyCost * InefficiencyCost(target_speed,car_lane_double) + weightAccelerationCost * AccelerationAndJerkCost(trajectory_kl) +
 									  weightCollisionCost*CollisionCost(trajectory_kl,car_lane_double);
@@ -509,8 +511,8 @@ vector<vector<double>> PathPlanning::state_machine(){
 							break;
 						case TL:
 
-							set_speed = car_speed;
-							trajectory_tl = GenerateTrajectory(set_speed,lane_d[(car_lane-1)%3],path_len_lane_change);
+							set_speed = keep_lane(car_speed,lane_tl);
+							trajectory_tl = GenerateTrajectory(set_speed,lane_d[lane_tl],path_len_lane_change);
 							cost_tl = weightInefficiencyCost * InefficiencyCost(target_speed,car_lane_tl) + weightAccelerationCost * AccelerationAndJerkCost(trajectory_tl)
 										+ weightCollisionCost*CollisionCost(trajectory_tl,car_lane_tl);
 							cout<<"Cost TL:"<<cost_tl<<endl;
@@ -524,8 +526,8 @@ vector<vector<double>> PathPlanning::state_machine(){
 							}
 							break;
 						case TR:
-							set_speed = car_speed;
-							trajectory_tr = GenerateTrajectory(set_speed,lane_d[(car_lane+1)%3],path_len_lane_change);
+							set_speed = keep_lane(car_speed,lane_tr);
+							trajectory_tr = GenerateTrajectory(set_speed,lane_d[lane_tr],path_len_lane_change);
 							cost_tr = weightInefficiencyCost * InefficiencyCost(target_speed,car_lane_tr) + weightAccelerationCost*AccelerationAndJerkCost(trajectory_tr)
 										+ weightCollisionCost*CollisionCost(trajectory_tr,car_lane_tr);
 							cout<<"Cost TR:"<<cost_tr<<endl;
@@ -700,9 +702,10 @@ void PathPlanning::sensor_fusion_processing(){
 
 }
 
-double PathPlanning::keep_lane(){
 
-		double set_speed = 21;
+double PathPlanning::keep_lane(double &target_speed, int &new_lane){
+
+		double set_speed = target_speed;
 		double distance_front,front_car_speed,relative_speed,acceleration;
 		vector<double> front_car;
 		double path_len = 75;
@@ -713,7 +716,7 @@ double PathPlanning::keep_lane(){
 		double front_car_id;
 		static double old_speed = 0;
 
-		front_car_id 	= lane_info[car_lane][1];
+		front_car_id 	= lane_info[new_lane][1];
 		front_car = SensorFusion_map[front_car_id];
 
 

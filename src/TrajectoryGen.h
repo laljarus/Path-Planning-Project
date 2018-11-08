@@ -48,7 +48,7 @@ public:
 
 	void sensor_fusion_processing();
 
-	double keep_lane();
+	double keep_lane(double &target_speed,int &intended_lane);
 
 	double InefficiencyCost(double &target_speed,double &intended_lane);
 	double CollisionCost(vector<vector<double>> &trajectory,double &intended_lane);
